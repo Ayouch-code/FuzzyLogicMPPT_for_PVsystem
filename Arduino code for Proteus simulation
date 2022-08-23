@@ -1,0 +1,207 @@
+#include "fis_header.h"
+#include <PWM.h>
+#include<SD.h>
+#include <SPI.h>
+File File1;
+int Time;
+int Day;
+int Month;
+int Year;
+int t;
+int h;
+int m;
+int dutycycle = 11;   //use pin 11 on the Mega , otherwise there is a frequency cap at 31 Hz
+// how many points to fade the LED by
+int32_t frequency = 25000; //frequency (in Hz) 
+// Number of inputs to the fuzzy inference system
+const int fis_gcI = 2; 
+// Number of outputs to the fuzzy inference system
+const int fis_gcO = 1;
+// Number of rules to the fuzzy inference system
+const int fis_gcR = 9;
+FIS_TYPE g_fisInput[fis_gcI];
+FIS_TYPE g_fisOutput[fis_gcO];
+// Setup routine runs once when you press reset:
+int analogInput0 = A0;
+int analogInput1 = A1;
+float vout1 = 0.0;
+float vout2 = 0.0;
+float vin1 = 0.0;
+float vin2 = 0.0;
+float R1 = 30000.0; 
+float R2 = 7500; // 6688.6 for another sensor and 7500 for original one //
+int value1 = 0;
+int value2 = 0;
+const int analogIn2 = A2;
+const int analogIn3 = A3;
+int mVperAmp = 100; // use 100 for 20A Module and 66 for 30A Module
+int RawValue2= 0;
+int RawValue3= 0;
+int ACSoffset = 2500;
+double Voltage2 = 0;
+double Voltage3 = 0;
+double Amps2 = 0;
+double Amps3 = 0;
+void setup() {
+ pinMode(analogInput0, INPUT);
+ pinMode(analogInput1, INPUT);
+ Serial.begin(9600);
+ while(!Serial){}
+Serial.println("intialized SD card");
+if(!SD.begin(4)){
+ Serial.println("intiliazed faild");
+ return; }
+Serial.println("intialized complet.\n");
+File1 = SD.open("mahmod.txt", FILE_WRITE);
+File1.close();
+//Serial.println("write text to file....");
+Serial.println("Enter curren Day");
+delay(7000);
+if (Serial.available() ) {
+ Day = Serial.parseInt();}
+Serial.println("Enter curren Month");
+delay(7000);
+if (Serial.available() ) {
+ Month = Serial.parseInt();}
+Serial.println("Enter curren Year");
+delay(7000);
+if (Serial.available() ) {
+ Year = Serial.parseInt();}
+Serial.println("Enter curren Time'HOUR 24 system'");
+delay(7000);
+if (Serial.available() ) {
+ h = Serial.parseInt();}
+Serial.println("Enter curren Time'MIN'");
+delay(7000);
+if (Serial.available() ) {
+ m = Serial.parseInt();}
+Serial.println("done time");
+Serial.print("PV Voltage");
+Serial.print('\t');
+ Serial.print("Battery Voltage");
+Serial.print('\t');
+Serial.print('\t');
+ Serial.print("PV current");
+Serial.print('\t');
+ Serial.print("Battery current");
+ Serial.print('\t');
+ Serial.print('\t');
+ Serial.print("fsi output");
+ Serial.print('\t');
+ Serial.print("Duty Cycle");
+ Serial.print('\t');
+ Serial.print("Time");
+Serial.print('\t');
+Serial.print('\t');
+Serial.println("Date");
+ // initialize the Analog pins for input.
+ // Pin mode for Input: input1
+ pinMode(analogInput0 , INPUT);
+ // Pin mode for Input: input2
+ pinMode(analogIn2 , INPUT);
+ // initialize the Analog pins for output.
+ // Pin mode for Output: output1
+ pinMode(10 , OUTPUT);
+ //initialize all timers except for 0, to save time keeping functions
+ InitTimersSafe();
+ //sets the frequency for the specified pin
+ bool success = SetPinFrequencySafe(dutycycle, frequency);}
+// Loop routine runs over and over again forever:
+void loop()
+{ while(h!=24){
+  while(m!=60){
+ // Read Input: input1
+ g_fisInput[0] = analogRead(analogInput0);
+ // Read Input: input2
+ g_fisInput[1] = analogRead(analogIn2);
+ g_fisOutput[0] = 0;
+ fis_evaluate();
+ dutycycle = g_fisOutput[0]/4;
+ // read the value at analog input
+ value1 = analogRead(analogInput0);
+ value2 = analogRead(analogInput1);
+ vout1 = (value1 * 5.0) / 1024.0; // see text
+ vout2 = (value2 * 5.0) / 1024.0; // see text
+ vin1 = vout1 / (R2/(R1+R2));
+ vin2 = vout2 / (R2/(R1+R2));
+RawValue2 = analogRead(analogIn2);
+Voltage2 = (RawValue2 / 1024.0) * 5000; // Gets you mV
+Amps2 = ((Voltage2 - ACSoffset) / mVperAmp);
+ RawValue3 = analogRead(analogIn3);
+Voltage3 = (RawValue3 / 1024.0) * 5000; // Gets you mV
+Amps3 = ((Voltage3 - ACSoffset) / mVperAmp);
+Serial.print(vin1,2);
+Serial.print('\t');
+Serial.print('\t');
+Serial.print('\t');
+Serial.print(vin2,2);
+Serial.print('\t');
+Serial.print('\t');
+Serial.print(Amps2,3);
+Serial.print("\t");
+Serial.print("\t");
+Serial.print('\t');
+Serial.print(Amps3,3);
+Serial.print('\t');
+Serial.print('\t');
+Serial.print (g_fisOutput[0]);
+Serial.print('\t');
+Serial.print('\t');
+Serial.print(dutycycle);
+Serial.print('\t');
+Serial.print('\t');
+Serial.print(h);
+Serial.print(":");
+Serial.print(m);
+Serial.print("\t");
+Serial.print('\t');
+Serial.print(Day);
+Serial.print("/");
+Serial.print(Month);
+Serial.print("/");
+Serial.println(Year);
+ // Set output vlaue: output1
+ analogWrite(10,dutycycle);
+File1 = SD.open("mahmod.txt", FILE_WRITE);
+File1.print(vin1,2);
+File1.print('\t');
+File1.print('\t');
+File1.print(vin2,2);
+File1.print('\t');
+File1.print('\t');
+File1.print(Amps2,3);
+File1.print('\t');
+File1.print('\t');
+File1.print(Amps3,3);
+File1.print('\t');
+File1.print('\t');
+File1.print(g_fisOutput[0]);
+File1.print('\t');
+File1.print('\t');
+File1.print(dutycycle);
+File1.print('\t');
+File1.print('\t');
+File1.print(h);
+File1.print(":");
+File1.print(m);
+File1.print("\t");
+File1.print('\t');
+File1.print(Day);
+File1.print("/");
+File1.print(Month);
+File1.print("/");
+File1.println(Year);
+File1.close();
+delay(60000);
+m=m+01;}
+m=0;
+h=h+01;
+if(h==24){
+ Day=Day+1;
+if(Day==30){
+ Day=1;
+ Month=Month+1;
+if(Month==30)
+ {Month=1;}
+ }}}
+h=1;}
