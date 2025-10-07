@@ -7,4 +7,3 @@ You can access the full presentation here: https://us.docworkspace.com/d/sIIeN28
 
 OR download it from the previous files
 
-Note: For further information/References please email me at: ayachellal@outlook.com
